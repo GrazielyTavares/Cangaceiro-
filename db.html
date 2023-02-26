@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Aprendendo IndexedDB</title>
+</head>
+<body>
+    <script>
+         
+        let connection = null;
+
+        const openRequest = indexedDB.open("cangaceiro", 2);
+
+        //lidando com os eventos de Db
+        openRequest.onupgradeneeded = e => {
+            console.log('Cria ou altera ou atualizada um banco já existente');
+            connection = e.target.result;
+        
+            //se o store já existir deve apaga-lo e criar um novo == drop database
+            if(connection.objectStoreNames.contains('negociacoes')){
+                connection.deleteObjectStore('negociacoes');
+            }
+
+            connection.createObjectStore('negociacoes', { autoIncrement: true })
+        }
+
+        openRequest.onsuccess = e => {
+            console.log('Conexão feita com sucesso!');
+        
+            connection = e.target.result;
+       
+
+        }
+
+        openRequest.onerror = e => {
+            console.log(e.target.console.error);
+        }    
+        
+        function adiciona(){
+
+            const negociacao = new Negociacao(new Date(), 200, 1);
+
+            // 1- parametro Array com o nome da store onde a transação criará
+            // 2- o tipo 
+            // readwrite : transação que permite escrita.
+            // readonly: só leitura
+
+            const request = connection
+                 .transaction(['negociacoes'], 'readwrite')
+                 .store('negociacoes')
+                 .add(negociacao); //adiciona
+            
+            // funções de callbacks pra saber como a requisição ocorreu
+            request.onsuccess = e => 
+                console.log('negociação salva com sucesso')
+            
+
+            request.onerror = e =>
+                console.log('Não foi possível salvar a negociação')
+            
+        }
+
+        function listaTodos(){
+            
+            const cursor = connection
+                 .transaction(['negociacoes'], 'readwrite')
+                 .store('negociacoes')
+                 .openCursor();
+            
+            cursor.onsuccess = e => { 
+                //callbak - > Na primeira chamada, teremos acesso a um objeto ponteiro que sabe acessar a primeira negociação da store.
+                // Assim que add a primeira negociação. irá disparar uma nova chamada da função e tudo se repetirá até que tenha percorrido todos os objetos da store
+           
+                const atual = e.target.result;
+
+                //se for !null é pq ainda a dado
+                if(atual){
+                    
+                    const negociacao = new Negociacao(
+                        atual.value._data,
+                        atual.value._quantidade,
+                        atual.value._valor);
+                    
+                    negociacoes.push(negociacao)//guarda os dados da negociacao
+                    //vai para a próxima posição chamando o onsucess novamente.
+                    atual.continue();
+                } else {
+                    // quando atual == null, é pq não tem mais dados
+                    console.log(negociacoes);
+                }
+            }
+
+            cursor.onerror = e =>
+                console.log('Error:' + e.target.error.name);
+            
+        };
+    
+    </script>
+
+    <script src="app/domain/negociação/Negociacao.js"></script>
+</body>
+</html>
